@@ -1,0 +1,24 @@
+fn for(startValue, condition, action, block)
+    # parameter type checks
+    if (type(startValue) != "integer") then
+        out("The starting value must be an integer.");
+        exit();
+    else if (type(condition) != "function") then
+        out("The condition must be a function.");
+        exit();
+    else if (type(action) != "function") then
+        out("The action must be a function.");
+        exit();
+    else if (type(block) != "function") then
+        out("The code block must be a function.");
+        exit();
+    end if
+
+    # for loop implementation
+    if (condition(startValue)) then
+        block(startValue);
+        for(action(startValue), condition, action, block);
+    end if
+end fn
+
+return for;

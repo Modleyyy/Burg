@@ -63,6 +63,16 @@ public class Environment
             Console.WriteLine(outstr);
             return new NullValue();
         }));
+        env.DeclareValue("in", new FunctionValue((args,_) => {
+            if (args.Count > 0)
+            {
+                throw new("The native function 'in' only takes no arguments.");
+            }
+
+            var text = Console.ReadLine();
+
+            return new StringValue(text is null ? "" : text);
+        }));
         env.DeclareValue("type", new FunctionValue((args,_) => {
             if (args.Count == 1)
             {

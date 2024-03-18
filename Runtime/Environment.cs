@@ -50,7 +50,7 @@ public class Environment
         env.DeclareValue("false", new BoolValue(false));
 
         // global native functions
-        env.DeclareValue("out", new FunctionValue((args,_) => {
+        env.DeclareValue("out", new FunctionValue((args) => {
             string outstr = "";
             int l = args.Count;
             for (int i = 0; i < l; i++)
@@ -63,7 +63,7 @@ public class Environment
             Console.WriteLine(outstr);
             return new NullValue();
         }));
-        env.DeclareValue("in", new FunctionValue((args,_) => {
+        env.DeclareValue("in", new FunctionValue((args) => {
             if (args.Count > 0)
             {
                 throw new("The native function 'in' only takes no arguments.");
@@ -73,7 +73,7 @@ public class Environment
 
             return new StringValue(text is null ? "" : text);
         }));
-        env.DeclareValue("type", new FunctionValue((args,_) => {
+        env.DeclareValue("type", new FunctionValue((args) => {
             if (args.Count == 1)
             {
                 switch (args[0].type)
@@ -107,7 +107,7 @@ public class Environment
                 throw new("The native function 'type' only takes a single argument.");
             }
         }));
-        env.DeclareValue("require", new FunctionValue((args,_) => {
+        env.DeclareValue("require", new FunctionValue((args) => {
             if (args.Count == 0)
             {
                 throw new("The native function 'require' must pass in a value argument.");
@@ -130,15 +130,87 @@ public class Environment
 
             return value;
         }));
-        env.DeclareValue("exit", new FunctionValue( (_,_) => {
+        env.DeclareValue("exit", new FunctionValue( (_) => {
             System.Environment.Exit(0);
             return new StringValue("exit lol ig this code is unreachable so uh yeah cool");
         }));
-        env.DeclareValue("time", new FunctionValue( (_,_) => new IntegerValue(DateTime.UnixEpoch.Millisecond)));
+        env.DeclareValue("time", new FunctionValue( (_) => new IntegerValue(DateTime.UnixEpoch.Millisecond)));
+        env.DeclareValue("for", new FunctionValue((args) => {
+            if (args.Count == 4)
+            {
+                if (args[0].type != ValueTypes.Integer)
+                {
+                    throw new("The starting value must be an integer.");
+                }
+                else if (args[1].type != ValueTypes.Function)
+                {
+                    throw new("The condition must be a function.");
+                }
+                else if (args[2].type != ValueTypes.Function)
+                {
+                    throw new("The action must be a function.");
+                }
+                else if (args[3].type != ValueTypes.Function)
+                {
+                    throw new("The code block must be a function.");
+                }
+
+                int startValue = ((IntegerValue)args[0]).value;
+                FunctionValue.Function condition = ((FunctionValue)args[1]).call;
+                FunctionValue.Function action    = ((FunctionValue)args[2]).call;
+                FunctionValue.Function block     = ((FunctionValue)args[3]).call;
+                for (int i = startValue;
+                    ((BoolValue)condition(new() { new IntegerValue(i) })).value;
+                    i = ((IntegerValue)action(new() { new IntegerValue(i) })).value
+                    )
+                {
+                    block(new() {new IntegerValue(i)});
+                }
+                return new NullValue();
+            }
+            else if (args.Count == 0)
+            {
+                throw new("The native function 'for' must pass in 4 value arguments.");
+            }
+            else
+            {
+                throw new("The native function 'for' must take 4 arguments.");
+            }
+        }));
+        env.DeclareValue("while", new FunctionValue((args) => {
+            if (args.Count == 3)
+            {
+                if (args[1].type != ValueTypes.Function)
+                {
+                    throw new("The condition must be a function.");
+                }
+                else if (args[2].type != ValueTypes.Function)
+                {
+                    throw new("The code block must be a function.");
+                }
+
+                var state = args[0];
+                var condition  = ((FunctionValue)args[1]).call;
+                var block      = ((FunctionValue)args[2]).call;
+                while (((BoolValue)condition(new() { state })).value)
+                {
+                    state = block(new() { state });
+                }
+                return new NullValue();
+            }
+            else if (args.Count == 0)
+            {
+                throw new("The native function 'while' must pass in 3 value arguments.");
+            }
+            else
+            {
+                throw new("The native function 'while' must take 3 arguments.");
+            }
+        }));
 
         // global helper
         Dictionary<IRuntimeValue, IRuntimeValue> math = new() {
-            [new StringValue("abs")] = new FunctionValue((args,_) => {
+            [new StringValue("abs")] = new FunctionValue((args) => {
                 if (args.Count == 0)
                 {
                     throw new("The native function 'math.abs' must pass in a value argument.");
@@ -156,7 +228,7 @@ public class Environment
                         new IntegerValue(Math.Abs(((IntegerValue)args[0]).value)) :
                         new   FloatValue(Math.Abs(((  FloatValue)args[0]).value)) ;
             }),
-            [new StringValue("sin")] = new FunctionValue((args,_) => {
+            [new StringValue("sin")] = new FunctionValue((args) => {
                 if (args.Count == 0)
                 {
                     throw new("The native function 'math.sin' must pass in a value argument.");
@@ -174,7 +246,7 @@ public class Environment
                         new IntegerValue(Convert.ToInt32(Math.Sin(((IntegerValue)args[0]).value))) :
                         new FloatValue(Math.Sin(((FloatValue)args[0]).value));
             }),
-            [new StringValue("cos")] = new FunctionValue((args,_) => {
+            [new StringValue("cos")] = new FunctionValue((args) => {
                 if (args.Count == 0)
                 {
                     throw new("The native function 'math.cos' must pass in a value argument.");
@@ -192,7 +264,7 @@ public class Environment
                         new IntegerValue(Convert.ToInt32(Math.Cos(((IntegerValue)args[0]).value))) :
                         new FloatValue(Math.Cos(((FloatValue)args[0]).value));
             }),
-            [new StringValue("tan")] = new FunctionValue((args,_) => {
+            [new StringValue("tan")] = new FunctionValue((args) => {
                 if (args.Count == 0)
                 {
                     throw new("The native function 'math.tan' must pass in a value argument.");
@@ -212,7 +284,7 @@ public class Environment
             }),
         };
         Dictionary<IRuntimeValue, IRuntimeValue> str = new() {
-            [new StringValue("length")] = new FunctionValue((args,_) => {
+            [new StringValue("length")] = new FunctionValue((args) => {
                 if (args.Count == 0)
                 {
                     throw new("The native function 'str.length' must pass in a value argument.");
@@ -230,7 +302,7 @@ public class Environment
             }),
         };
         Dictionary<IRuntimeValue, IRuntimeValue> arr = new() {
-            [new StringValue("length")] = new FunctionValue((args,_) => {
+            [new StringValue("length")] = new FunctionValue((args) => {
                 if (args.Count == 0)
                 {
                     throw new("The native function 'arr.length' must pass in a value argument.");
@@ -246,7 +318,7 @@ public class Environment
 
                 return new IntegerValue(((ArrayValue)args[0]).list.Count);
             }),
-            [new StringValue("map")] = new FunctionValue((args,env) => {
+            [new StringValue("map")] = new FunctionValue((args) => {
                 if (args.Count != 2)
                 {
                     throw new("The native function 'arr.map' takes exactly two arguments.");
@@ -266,13 +338,13 @@ public class Environment
                 List<IRuntimeValue> mapped = new();
                 foreach (var item in array.list)
                 {
-                    mapped.Add(func.call(new List<IRuntimeValue> { item }, env));
+                    mapped.Add(func.call(new List<IRuntimeValue> { item }));
                 }
                 return new ArrayValue(mapped);
             }),
         };
         Dictionary<IRuntimeValue, IRuntimeValue> dict = new() {
-            [new StringValue("length")] = new FunctionValue((args,_) => {
+            [new StringValue("length")] = new FunctionValue((args) => {
                 if (args.Count == 0)
                 {
                     throw new("The native function 'dict.length' must pass in a value argument.");
@@ -288,7 +360,7 @@ public class Environment
 
                 return new IntegerValue(((DictionaryValue)args[0]).props.Keys.Count);
             }),
-            [new StringValue("keys")] = new FunctionValue((args,_) => {
+            [new StringValue("keys")] = new FunctionValue((args) => {
                 if (args.Count == 0)
                 {
                     throw new("The native function 'dict.keys' must pass in a value argument.");
@@ -304,7 +376,7 @@ public class Environment
 
                 return new ArrayValue(((DictionaryValue)args[0]).props.Keys.ToList());
             }),
-            [new StringValue("values")] = new FunctionValue((args,_) => {
+            [new StringValue("values")] = new FunctionValue((args) => {
                 if (args.Count == 0)
                 {
                     throw new("The native function 'dict.values' must pass in a value argument.");

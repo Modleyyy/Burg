@@ -101,7 +101,7 @@ public struct ArrayValue : IRuntimeValue
 
 public struct FunctionValue : IRuntimeValue
 {
-    public delegate IRuntimeValue Function(List<IRuntimeValue> args, Environment env);
+    public delegate IRuntimeValue Function(List<IRuntimeValue> args);
     public readonly ValueTypes type => ValueTypes.Function;
     public readonly object value => call;
 

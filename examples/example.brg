@@ -1,0 +1,20 @@
+val array = [5, 78.0, 21];
+val l = arr.length(array);
+
+out("For loop example:");
+
+val forCond = lm(i) return i < l; end lm;
+val forActi = lm(i) return i + 1; end lm;
+
+for(0, forCond, forActi, lm(i)
+    out(array[i]);
+end lm);
+
+out("While loop example:");
+
+val whileCond = lm(i) return i >= 0; end lm;
+
+while(l - 1, whileCond, lm(curState)
+    out(array[curState]);
+    return curState - 1;
+end lm);

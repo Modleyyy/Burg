@@ -238,48 +238,44 @@ public static class Interpreter
             case StatementType.FnDeclaration: {
                 FnDeclaration fd = (FnDeclaration)astNode;
                 List<IStatement> body = fd.body.body;
-                env.DeclareValue(fd.identifier.symbol, new FunctionValue() {
-                    call = (args, _) => {
-                        if (args.Count != fd.parameters!.Count)
-                            throw new(
-                                $"Runtime Error:\n Function must take {fd.parameters.Count} arguments, got {args.Count} arguments instead.");
+                env.DeclareValue(fd.identifier.symbol, new FunctionValue((args) => {
+                    if (args.Count != fd.parameters!.Count)
+                        throw new(
+                            $"Runtime Error:\n Function must take {fd.parameters.Count} arguments, got {args.Count} arguments instead.");
 
-                        Environment scope = new(env);
-                        for (int i = 0; i < fd.parameters.Count; i++) {
-                            scope.DeclareValue(fd.parameters[i].symbol, args[i]);
-                        }
-                        foreach (IStatement stmt in body) {
-                            IRuntimeValue val = Evaluate(stmt, scope);
-                            if (val.type == ValueTypes.Return)
-                                return ((ReturnValue)val).value;
-                        }
+                    Environment scope = new(env);
+                    for (int i = 0; i < fd.parameters.Count; i++) {
+                        scope.DeclareValue(fd.parameters[i].symbol, args[i]);
+                    }
+                    foreach (IStatement stmt in body) {
+                        IRuntimeValue val = Evaluate(stmt, scope);
+                        if (val.type == ValueTypes.Return)
+                            return ((ReturnValue)val).value;
+                    }
 
-                        return new NullValue(); // if there's no return statement, just return null
-                    },
-                });
+                    return new NullValue(); // if there's no return statement, just return null
+                }));
                 return new NullValue(); // return null since it's a statement and not an expression
             }
 
             case StatementType.LambdaLit: {
                 LambdaLit lm = (LambdaLit)astNode;
                 List<IStatement> body = lm.body.body;
-                return new FunctionValue() {
-                    call = (args, _) => {
-                        if (args.Count != lm.parameters!.Count)
-                            throw new($"Runtime Error:\n Function must take {lm.parameters.Count} arguments, got {args.Count} instead.");
+                return new FunctionValue((args) => {
+                    if (args.Count != lm.parameters!.Count)
+                        throw new($"Runtime Error:\n Function must take {lm.parameters.Count} arguments, got {args.Count} instead.");
 
-                        Environment scope = new(env);
-                        for (int i = 0; i < lm.parameters.Count; i++)
-                            scope.DeclareValue(lm.parameters[i].symbol, args[i]);
-                        foreach (IStatement stmt in body) {
-                            IRuntimeValue val = Evaluate(stmt, scope);
-                            if (val.type == ValueTypes.Return)
-                                return ((ReturnValue)val).value;
-                        }
-
-                        return new NullValue(); // if there's no return statement, just return null
+                    Environment scope = new(env);
+                    for (int i = 0; i < lm.parameters.Count; i++)
+                        scope.DeclareValue(lm.parameters[i].symbol, args[i]);
+                    foreach (IStatement stmt in body) {
+                        IRuntimeValue val = Evaluate(stmt, scope);
+                        if (val.type == ValueTypes.Return)
+                            return ((ReturnValue)val).value;
                     }
-                };
+
+                    return new NullValue(); // if there's no return statement, just return null
+                });
             }
 
             case StatementType.IfStmt: {
@@ -318,7 +314,7 @@ public static class Interpreter
                     throw new("Runtime Error:\n " + fn.value +
                     " is not a function, therefor it cannot be called. Expected: function Got: " + fn.type);
 
-                return fn.call(args, new Environment(env));
+                return fn.call(args);
             }
 
             case StatementType.MemberExpr: {

@@ -68,8 +68,14 @@ public static class Tokenizer
                     src.RemoveAt(0);
                     break;
                 case '#':
-                    while (src[0] != '\n')
+                    while (src.Count > 0 && src[0] != '\n')
                         src.RemoveAt(0);
+                    break;
+                case '$':
+                    src.RemoveAt(0); // remove opening $
+                    while (src.Count > 0 && src[0] != '$')
+                        src.RemoveAt(0); // remove everything inbetween the $s
+                    src.RemoveAt(0); // remove closing $
                     break;
 
                 default:

@@ -1,0 +1,64 @@
+### This is a cool game of Rock, Paper, Scissors made by The GameDevShark (thanks :3)
+## The AI you play against only plays scissors, because I'm so stupid I didn't add a math.random function :p
+
+fn endGame()
+    out("Thanks for playing!");
+    out("Press ENTER to exit...");
+    in();
+    exit();
+end fn
+
+out("------------------------------------------------------------");
+out();
+out("# Rock, paper, scissors!");
+out();
+
+out("What would you like to do? Rock (r), paper (p), or scissors (s):");
+val userChoice = in();
+
+if (userChoice != "r") then
+    if (userChoice != "s") then
+        if (userChoice != "p") then
+            out("Invalid input given. Press ENTER to exit...");
+            in();
+            exit();
+        end if
+    end if
+end if
+
+val computerChoice = "s";
+
+if (userChoice == computerChoice) then
+    out("It's a draw!");
+    endGame();
+end if
+
+if (userChoice == "r") then
+    if (computerChoice == "p") then
+        out("You lose!");
+        endGame();
+    else
+        out("You win!");
+        endGame();
+    end if
+end if
+
+if (userChoice == "p") then
+    if (computerChoice == "s") then
+        out("You lose!");
+        endGame();
+    else
+        out("You win!");
+        endGame();
+    end if
+end if
+
+if (userChoice == "s") then
+    if (computerChoice == "r") then
+        out("You lose!");
+        endGame();
+    else
+        out("You win!");
+        endGame();
+    end if
+end if

@@ -1,0 +1,35 @@
+### This file is an example to show how to do OOP (Object-Oriented Programming) in Burg
+
+# Constructor function: Returns a dictionary representing the object
+fn makePerson(name, age, dayOB, monthOB, yearOB)
+    if (type(name) != "string") then
+        out(name + " is not a valid name. The name of the person must be a string.");
+        exit();
+    else if (type(age) != "integer") then
+        out(age + " is not a valid age. The age of the person must be an integer.");
+        exit();
+    else if (type(dayOB) != "integer" || (dayOB > 31) || (dayOB < 1)) then
+        out(dayOB + " is not a valid day of birth. The person's day of birth must be an integer in the range 1 -> 31.");
+        exit();
+    else if (type(monthOB) != "integer" || (monthOB > 12) || (monthOB < 1)) then
+        out(monthOB + " is not a valid month of birth. The person's month of birth must be an integer in the range 1 -> 12.");
+        exit();
+    else if (type(yearOB) != "integer") then
+        out(yearOB + " is not a valid year of birth. The person's year of birth must be an integer.");
+        exit();
+    end if
+
+    return {
+        name = name,
+        age = age,
+        dateOfBirth = {
+            day = dayOB,
+            month = monthOB,
+            year = yearOB
+        }
+    };
+end fn
+
+val john = makePerson("John Doe", 34, 3, 6, 1987);
+
+out(john);

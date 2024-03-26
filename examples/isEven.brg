@@ -1,0 +1,11 @@
+fn isEven(x)
+    if ((type(x) != "integer") && (type(x) != "float")) then
+        out(x + "is not a number. It must be an integer or a float");
+        exit();
+    end if
+
+    return (x % 2) == 0;
+end fn
+
+out(isEven(4)); # true
+out(isEven(7)); # false

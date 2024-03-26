@@ -148,7 +148,26 @@ public static class Parser
 
     private static IExpression ParseExpr(List<Token> tokens)
     {
-        return ParseLambdaExpr(tokens);
+        return ParseBooleanExpr(tokens);
+    }
+
+    private static IExpression ParseBooleanExpr(List<Token> tokens)
+    {
+        IExpression left = ParseLambdaExpr(tokens);
+
+        while (tokens[0].type == TokenType.BinaryOperator &&
+              (tokens[0].raw == "==" || tokens[0].raw == "!=" || tokens[0].raw == "<" ||
+               tokens[0].raw == ">"  || tokens[0].raw == "<=" || tokens[0].raw == ">=" ||
+               tokens[0].raw == "&&" || tokens[0].raw == "||"))
+        {
+            string oper = tokens[0].raw;
+            tokens.RemoveAt(0);
+
+            IExpression right = ParseLambdaExpr(tokens);
+            left = new BinaryExpr(left, oper, right);
+        }
+
+        return left;
     }
 
     private static IExpression ParseLambdaExpr(List<Token> tokens)
@@ -202,13 +221,14 @@ public static class Parser
 
         List<DictionaryProperty> props = new();
 
-        while (!ReachedEOF(tokens)) {
+        while (!ReachedEOF(tokens))
+        {
             Token tk = tokens[0];
             tokens.RemoveAt(0);
             if (tk.type == TokenType.CloseBrace)
                 break;
-
-            if (tk.type == TokenType.Identifier) {
+            if (tk.type == TokenType.Identifier)
+            {
                 Expect(TokenType.SetValue, tokens,
                     "Expected = after property key definition. Expected: = Got: " + tokens[0].raw);
                 IExpression value = ParseExpr(tokens);
@@ -216,17 +236,17 @@ public static class Parser
 
                 Token s = tokens[0];
                 tokens.RemoveAt(0);
-                if (s.type == TokenType.Seperator) {
+                if (s.type == TokenType.Seperator)
                     continue;
-                } else if (s.type == TokenType.CloseBrace) {
+                else if (s.type == TokenType.CloseBrace)
                     break;
-                } else {
+                else
                     throw new(
                         "Parser Error:\n Expected seperator , or closing brace } after property definition. Expected: , or } Got: "
                         + s.raw);
-                }
             }
-            else if (tk.type == TokenType.OpenBrace) {
+            else if (tk.type == TokenType.OpenBrace)
+            {
                 IExpression key = ParseExpr(tokens);
                 Expect(TokenType.CloseBracket, tokens,
                     "Expected ] after computed dictionary key definition. Expected: } Got: " + tokens[0].raw);
@@ -303,28 +323,9 @@ public static class Parser
 
     private static IExpression ParseAdditiveExpr(List<Token> tokens)
     {
-        IExpression left = ParseBooleanExpr(tokens);
-
-        while (tokens[0].type == TokenType.BinaryOperator && (tokens[0].raw == "+" || tokens[0].raw == "-"))
-        {
-            string oper = tokens[0].raw;
-            tokens.RemoveAt(0);
-
-            IExpression right = ParseBooleanExpr(tokens);
-            left = new BinaryExpr(left, oper, right);
-        }
-
-        return left;
-    }
-
-    private static IExpression ParseBooleanExpr(List<Token> tokens)
-    {
         IExpression left = ParseCallMemberExpr(tokens);
 
-        while (tokens[0].type == TokenType.BinaryOperator &&
-              (tokens[0].raw == "==" || tokens[0].raw == "!=" || tokens[0].raw == "<" ||
-               tokens[0].raw == ">"  || tokens[0].raw == "<=" || tokens[0].raw == ">=" ||
-               tokens[0].raw == "&&" || tokens[0].raw == "||"))
+        while (tokens[0].type == TokenType.BinaryOperator && (tokens[0].raw == "+" || tokens[0].raw == "-"))
         {
             string oper = tokens[0].raw;
             tokens.RemoveAt(0);

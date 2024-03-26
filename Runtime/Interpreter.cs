@@ -4,22 +4,22 @@ using Burg.FrontEnd.AST;
 
 public static class Interpreter
 {
-    public static IRuntimeValue EvaluateBiexpr(BinaryExpr biexpr, Environment env)
+    public static IRuntimeValue EvaluateBiExpr(BinaryExpr biexpr, Environment env)
     {
-        IRuntimeValue left = Evaluate(biexpr.left, env);
-        IRuntimeValue right = Evaluate(biexpr.right, env);
+        IRuntimeValue left = EvaluateExpr(biexpr.left, env);
+        IRuntimeValue right = EvaluateExpr(biexpr.right, env);
 
         var typeError = () => {
-            Console.WriteLine("Runtime Error:\n", "Binary Expression type error:");
-            Console.WriteLine("\tLeft type: ", left.type);
-            Console.WriteLine("\tRight type: ", right.type);
+            Console.WriteLine("Runtime Error:\n Binary Expression type error:");
+            Console.WriteLine("\tLeft type: " + left.type.ToString());
+            Console.WriteLine("\tRight type: " + right.type.ToString());
             throw new();
         };
         var operatorError = () => {
-            Console.WriteLine("Runtime Error:\n", "Binary Expression operator error:");
-            Console.WriteLine("\tOperator: ", biexpr.opr);
-            Console.WriteLine("\tLeft type: ", left.type);
-            Console.WriteLine("\tRight type: ", right.type);
+            Console.WriteLine("Runtime Error:\n Binary Expression operator error:");
+            Console.WriteLine("\tOperator: " + biexpr.opr);
+            Console.WriteLine("\tLeft type: " + left.type.ToString());
+            Console.WriteLine("\tRight type: " + right.type.ToString());
             throw new();
         };
 
@@ -174,92 +174,56 @@ public static class Interpreter
         return new StringValue("lol unreachable lol");
     }
 
-    public static IRuntimeValue EvaluateChunk(Chunk chunk, Environment env)
+    public static StmtReturnValue EvaluateChunk(Chunk chunk, Environment env)
     {
-        foreach (IStatement node in chunk.body)
+        foreach (IStatement stmt in chunk.body)
         {
-            if (node.Kind == StatementType.ReturnStmt)
-                return Evaluate(((ReturnStmt)node).value, env);
-            Evaluate(node, env);
+            if (stmt is IExpression expr)
+                EvaluateExpr(expr, env);
+            else
+            {
+                StmtReturnValue srv = EvaluateStmt(stmt, env);
+                if (srv.hasValue)
+                    return srv;
+            }
         }
-        return new NullValue();
+        return new();
     }
 
-    public static IRuntimeValue Evaluate(IStatement astNode, Environment env)
+    public static IRuntimeValue EvaluateExpr(IExpression expr, Environment env)
     {
-        switch (astNode.Kind)
+        switch (expr.Kind)
         {
             case StatementType.IntegerLit:
-                return new IntegerValue() { value = ((IntegerLit)astNode).value };
+                return new IntegerValue() { value = ((IntegerLit)expr).value };
             case StatementType.FloatLit:
-                return new FloatValue() { value = ((FloatLit)astNode).value };
+                return new FloatValue() { value = ((FloatLit)expr).value };
             case StatementType.StringLit:
-                return new StringValue() { value = ((StringLit)astNode).value };
+                return new StringValue() { value = ((StringLit)expr).value };
             case StatementType.DictionaryLit: {
-                DictionaryLit dict = (DictionaryLit)astNode;
+                DictionaryLit dict = (DictionaryLit)expr;
                 Dictionary<IRuntimeValue, IRuntimeValue> props = new();
                 foreach (DictionaryProperty prop in dict.props)
                 {
-                    if (prop.value.Kind == StatementType.Identifier)
-                    {
+                    if (prop.key.Kind == StatementType.Identifier)
                         props.Add(
-                            new StringValue() { value = ((Identifier)prop.key).symbol },
-                            Evaluate(prop.value, env)
+                            new StringValue(((Identifier)prop.key).symbol),
+                            EvaluateExpr(prop.value, env)
                         );
-                    }
                     else
-                    {
                         props.Add(
-                            Evaluate( prop.key , env),
-                            Evaluate(prop.value, env)
+                            EvaluateExpr( prop.key , env),
+                            EvaluateExpr(prop.value, env)
                         );
-                    }
                 }
                 return new DictionaryValue() {
                     props = props
                 };
             }
-            case StatementType.ArrayLit: {
-                return new ArrayValue() {
-                    list = ((ArrayLit)astNode).list.Select(elm => Evaluate(elm, env)).ToList()
-                };
-            }
-
-            case StatementType.Chunk:
-                return EvaluateChunk((Chunk)astNode, env);
-
-            case StatementType.ValDeclaration: {
-                ValDeclaration vd = (ValDeclaration)astNode;
-                IRuntimeValue value = Evaluate(vd.value, env);
-                env.DeclareValue(vd.identifier.symbol, value);
-                return new NullValue();
-            }
-
-            case StatementType.FnDeclaration: {
-                FnDeclaration fd = (FnDeclaration)astNode;
-                List<IStatement> body = fd.body.body;
-                env.DeclareValue(fd.identifier.symbol, new FunctionValue((args) => {
-                    if (args.Count != fd.parameters!.Count)
-                        throw new(
-                            $"Runtime Error:\n Function must take {fd.parameters.Count} arguments, got {args.Count} arguments instead.");
-
-                    Environment scope = new(env);
-                    for (int i = 0; i < fd.parameters.Count; i++) {
-                        scope.DeclareValue(fd.parameters[i].symbol, args[i]);
-                    }
-                    foreach (IStatement stmt in body) {
-                        IRuntimeValue val = Evaluate(stmt, scope);
-                        if (val.type == ValueTypes.Return)
-                            return ((ReturnValue)val).value;
-                    }
-
-                    return new NullValue(); // if there's no return statement, just return null
-                }));
-                return new NullValue(); // return null since it's a statement and not an expression
-            }
-
+            case StatementType.ArrayLit:
+                return new ArrayValue(((ArrayLit)expr).list.Select(elm => EvaluateExpr(elm, env)).ToList());
             case StatementType.LambdaLit: {
-                LambdaLit lm = (LambdaLit)astNode;
+                LambdaLit lm = (LambdaLit)expr;
                 List<IStatement> body = lm.body.body;
                 return new FunctionValue((args) => {
                     if (args.Count != lm.parameters!.Count)
@@ -268,47 +232,32 @@ public static class Interpreter
                     Environment scope = new(env);
                     for (int i = 0; i < lm.parameters.Count; i++)
                         scope.DeclareValue(lm.parameters[i].symbol, args[i]);
-                    foreach (IStatement stmt in body) {
-                        IRuntimeValue val = Evaluate(stmt, scope);
-                        if (val.type == ValueTypes.Return)
-                            return ((ReturnValue)val).value;
+                    foreach (IStatement stmt in body)
+                    {
+                        if (stmt is IExpression expr)
+                            EvaluateExpr(expr, scope);
+                        else
+                        {
+                            StmtReturnValue srv = EvaluateStmt(stmt, scope);
+                            if (srv.hasValue)
+                                return srv.value!;
+                        }
                     }
 
                     return new NullValue(); // if there's no return statement, just return null
                 });
             }
 
-            case StatementType.IfStmt: {
-                IfStmt ifs = (IfStmt)astNode;
-                if ((bool)Evaluate(ifs.test, env).value)
-                        return EvaluateChunk(ifs.consequent, new Environment(env));
-                else if (ifs.alternate is not null)
-                {
-                    switch (ifs.alternate.Kind)
-                    {
-                        case StatementType.Chunk:
-                            return EvaluateChunk((Chunk)ifs.alternate, new Environment(env));
-                        case StatementType.IfStmt:
-                            return Evaluate(ifs.alternate, env);
-                    }
-                }
-
-                return new NullValue(); // return null since it's a statement and not an expression
-            }
-
-            case StatementType.ReturnStmt:
-                return new ReturnValue() { value = Evaluate(((ReturnStmt)astNode).value, env) };
-
             case StatementType.Identifier:
-                return env.GetValue(((Identifier)astNode).symbol);
+                return env.GetValue(((Identifier)expr).symbol);
 
             case StatementType.BinaryExpr:
-                return EvaluateBiexpr((BinaryExpr)astNode, env);
+                return EvaluateBiExpr((BinaryExpr)expr, env);
 
             case StatementType.CallExpr: {
-                CallExpr ce = (CallExpr)astNode;
-                List<IRuntimeValue> args = ce.args!.Select(arg => Evaluate(arg, env)).ToList();
-                FunctionValue fn = (FunctionValue)Evaluate(ce.caller, env);
+                CallExpr ce = (CallExpr)expr;
+                List<IRuntimeValue> args = ce.args!.Select(arg => EvaluateExpr(arg, env)).ToList();
+                FunctionValue fn = (FunctionValue)EvaluateExpr(ce.caller, env);
 
                 if (fn.type != ValueTypes.Function)
                     throw new("Runtime Error:\n " + fn.value +
@@ -318,8 +267,8 @@ public static class Interpreter
             }
 
             case StatementType.MemberExpr: {
-                MemberExpr me = (MemberExpr)astNode;
-                IRuntimeValue obj = Evaluate(me.obj, env);
+                MemberExpr me = (MemberExpr)expr;
+                IRuntimeValue obj = EvaluateExpr(me.obj, env);
                 if (obj.type != ValueTypes.Dictionary && obj.type != ValueTypes.Array)
                     throw new("Runtime Error:\n Can't access member property of type: " + obj.type);
 
@@ -330,7 +279,7 @@ public static class Interpreter
                     {
                         IRuntimeValue rt = new NullValue();
                         foreach (IRuntimeValue key in dv.props.Keys)
-                            if (key.value == Evaluate(me.property, env))
+                            if (key.value == EvaluateExpr(me.property, env))
                                 rt = dv.props[key];
                         return rt;
                     }
@@ -348,7 +297,7 @@ public static class Interpreter
                     ArrayValue av = (ArrayValue)obj;
                     if (me.isComputed == true)
                     {
-                        IRuntimeValue i = Evaluate(me.property, env);
+                        IRuntimeValue i = EvaluateExpr(me.property, env);
                         if (i.type != ValueTypes.Integer)
                             throw new("Runtime Error:\n " + i.type +
                                 " is not a valid array index type.");
@@ -369,7 +318,93 @@ public static class Interpreter
             }
 
             default:
-                throw new("Unknown Statement type, cannot evaluate as a value: " + astNode);
+                throw new("Unknown Expression type, cannot evaluate as a value: " + expr);
+        }
+    }
+
+    public static StmtReturnValue EvaluateStmt(IStatement stmt, Environment env)
+    {
+        switch (stmt.Kind)
+        {
+            case StatementType.Chunk:
+                return EvaluateChunk((Chunk)stmt, env);
+
+            case StatementType.ValDeclaration: {
+                ValDeclaration vd = (ValDeclaration)stmt;
+                IRuntimeValue value = EvaluateExpr(vd.value, env);
+                env.DeclareValue(vd.identifier.symbol, value);
+                return new();
+            }
+
+            case StatementType.FnDeclaration: {
+                FnDeclaration fd = (FnDeclaration)stmt;
+                List<IStatement> body = fd.body.body;
+                env.DeclareValue(fd.identifier.symbol, new FunctionValue((args) => {
+                    if (args.Count != fd.parameters!.Count)
+                        throw new(
+                            $"Runtime Error:\n Function must take {fd.parameters.Count} arguments, got {args.Count} arguments instead.");
+
+                    Environment scope = new(env);
+                    for (int i = 0; i < fd.parameters.Count; i++)
+                        scope.DeclareValue(fd.parameters[i].symbol, args[i]);
+
+                    foreach (IStatement stmt in body)
+                    {
+                        if (stmt is IExpression expr)
+                            EvaluateExpr(expr, scope);
+                        else
+                        {
+                            StmtReturnValue srv = EvaluateStmt(stmt, scope);
+                            if (srv.hasValue)
+                                return srv.value!;
+                        }
+                    }
+
+                    return new NullValue(); // if there's no return statement, just return null
+                }));
+                return new(); // return null since it's a statement and not an expression
+            }
+
+            case StatementType.IfStmt: {
+                IfStmt ifs = (IfStmt)stmt;
+                if ((bool)EvaluateExpr(ifs.test, env).value)
+                        return EvaluateChunk(ifs.consequent, new Environment(env));
+                else if (ifs.alternate is not null)
+                {
+                    switch (ifs.alternate.Kind)
+                    {
+                        case StatementType.Chunk:
+                            return EvaluateChunk((Chunk)ifs.alternate, new Environment(env));
+                        case StatementType.IfStmt:
+                            return EvaluateStmt(ifs.alternate, env);
+                    }
+                }
+
+                return new(); // return null since it's a statement and not an expression
+            }
+
+            case StatementType.ReturnStmt:
+                return new(EvaluateExpr(((ReturnStmt)stmt).value, env));
+
+            default:
+                throw new("Unknown Statement type, cannot execute: " + stmt);
+        }
+    }
+
+    public sealed class StmtReturnValue
+    {
+        public readonly IRuntimeValue? value;
+        public readonly bool hasValue;
+
+        public StmtReturnValue(IRuntimeValue value)
+        {
+            this.value = value;
+            hasValue = true;
+        }
+
+        public StmtReturnValue()
+        {
+            hasValue = false;
         }
     }
 }

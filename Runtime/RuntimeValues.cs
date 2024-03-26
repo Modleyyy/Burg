@@ -12,8 +12,7 @@ public enum ValueTypes
     Bool,
     Dictionary,
     Array,
-    Function,
-    Return
+    Function
 }
 
 public interface IRuntimeValue
@@ -111,13 +110,4 @@ public struct FunctionValue : IRuntimeValue
     {
         this.call = call;
     }
-}
-
-public struct ReturnValue : IRuntimeValue
-{
-    public readonly ValueTypes type => ValueTypes.Return;
-
-    readonly object IRuntimeValue.value => value;
-
-    public IRuntimeValue value;
 }

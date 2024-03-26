@@ -34,6 +34,8 @@ public interface IStatement
     [JsonProperty("kind")]
     [JsonConverter(typeof(StringEnumConverter))]
     StatementType Kind { get; }
+
+    public string? ToString() => JsonConvert.SerializeObject(this, Formatting.Indented);
 }
 
 public struct Chunk : IStatement
@@ -219,6 +221,8 @@ public struct DictionaryLit : IExpression
     [JsonProperty("kind")]
     [JsonConverter(typeof(StringEnumConverter))]
     readonly StatementType IStatement.Kind => StatementType.DictionaryLit;
+    
+    [JsonProperty("props")]
     public List<DictionaryProperty> props;
 }
 
